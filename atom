@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# atom is free software; you can redistribute it and/or modify it under #
+# the terms of the GNU General Public License as published by the Free  #
+# Software Foundation; either version 3, or (at your option) any later  #
+# version.                                                              #
+#                                                                       #
+# You should have received a copy of the GNU General Public License     #
+# along with GCC; see the file COPYING3.  If not see                    #
+# <http://www.gnu.org/licenses/>.                                       #
+
+CODE_TYPE="normal"
+ASM_CODE=""
+NEED_HELP=0
+
+AS=arm-linux-androideabi-as
+OBJDUMP=arm-linux-androideabi-objdump
+
+function print_copylefts()
+{
+    echo "Android ASSEMBLY_TO_MACHINE_CODE version 0.0.1"
+    echo ""
+    echo "Copyright (C) 2015 $(dc -e 40995247380181659848396800020618450791690P)."
+    echo "This is free software; see the source for copying conditions.  There is NO"
+    echo "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    echo ""
+}
+
+function print_help()
+{
+    print_copylefts
+
+    echo "Usage: `basename $0` [options]"
+    echo "  -a asm code"
+    echo "      Specifies asm code string or file."
+    echo "  -t [normal/thumb]"
+    echo "      Normal or Thumb."
+    echo "  -h"
+    echo "      Print a summary of the options and exit."
+    echo "  -v"
+    echo "      Display the version number and copylefts."
+    exit
+}
+
+function asm_to_mach()
+{
+    srcfile=$1
+    objfile=$(mktemp)
+    if [ "$CODE_TYPE" == "thumb" ]
+    then
+        ${AS} -mthumb -o $objfile $srcfile
+    else
+        ${AS} -o $objfile $srcfile
+    fi
+    ${OBJDUMP} -d $objfile | awk -F':' '/:/ && NR>=8{print $2}'
+    if [ -f "$objfile" ]
+    then
+        rm $objfile
+    fi
+}
+
+if [ $# -lt 1 ]
+then                                                                        print_help
+fi                                                                                
+
+while getopts ":a:t:h" Option
+do                                                                                
+    case $Option in                                                                   
+        a) 
+            ASM_CODE="$OPTARG";;
+        t) 
+            CODE_TYPE="$OPTARG";;
+        h) 
+            NEED_HELP=1;;
+        *)
+            echo "You just entered an unsuported option.";;
+    esac                                                                              
+done                                                                              
+
+if [ $NEED_HELP -eq 1 ]
+then
+    print_help
+fi
+
+case $CODE_TYPE in
+    "normal"|"thumb")
+        ;;
+    *)
+        print_help
+        echo "Code type only support normal,thumb"
+        exit;;
+esac
+
+TMPFILE=$(mktemp)
+echo "    .section .text" > $TMPFILE
+echo "    .global _start" >> $TMPFILE
+echo "_start:" >> $TMPFILE
+
+if [ -f "$ASM_CODE" ] # machine code in file
+then
+    cat $ASM_CODE >> $TMPFILE
+    asm_to_mach $TMPFILE
+else
+    echo ${ASM_CODE} | sed 's/;/\n/g' >> $TMPFILE
+    asm_to_mach $TMPFILE
+fi
+
+rm $TMPFILE

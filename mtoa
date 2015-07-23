@@ -1,0 +1,103 @@
+#!/bin/bash
+
+# mtoa is free software; you can redistribute it and/or modify it under #
+# the terms of the GNU General Public License as published by the Free  #
+# Software Foundation; either version 3, or (at your option) any later  #
+# version.                                                              #
+#                                                                       #
+# You should have received a copy of the GNU General Public License     #
+# along with GCC; see the file COPYING3.  If not see                    #
+# <http://www.gnu.org/licenses/>.                                       #
+
+CODE_TYPE="normal"
+ARCH="arm"
+MACH_CODE=""
+NEED_HELP=0
+
+AS=arm-linux-androideabi-as
+OBJDUMP=arm-linux-androideabi-objdump
+
+function print_copylefts()
+{
+    echo "MACHINE_CODE_TO_ASSEMBLY version 0.0.1"
+    echo ""
+    echo "Copyright (C) 2015 $(dc -e 40995247380181659848396800020618450791690P)."
+    echo "This is free software; see the source for copying conditions.  There is NO"
+    echo "warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    echo ""
+}
+
+function print_help()
+{
+    print_copylefts
+
+    echo "Usage: `basename $0` [options]"
+    echo "  -a architecture"
+    echo "      Specify the architecture to use when disassembling,"
+    echo "      try \"${OBJDUMP} --help\" to get supported list.The default is \"arm\"."
+    echo "  -m machine code"
+    echo "      Specifies machine code string or file."
+    echo "  -t [normal/thumb]"
+    echo "      Normal or Thumb."
+    echo "  -h"
+    echo "      Print a summary of the options and exit."
+    exit
+}
+
+function mach_to_asm()
+{
+    arch=$1
+    tmpfile=$2
+    style=$3
+    if [ "$style" == "thumb" ]
+    then
+        ${OBJDUMP} --disassemble-all --target=binary --architecture=${arch} -Mforce-thumb ${tmpfile} | awk -F':' '/:/ && NR>=8{print $2}'
+    else
+        ${OBJDUMP} --disassemble-all --target=binary --architecture=${arch} ${tmpfile} | awk -F':' '/:/ && NR>=8{print $2}'
+    fi
+}
+
+if [ $# -lt 1 ]
+then                                                                              
+    print_help
+fi                                                                                
+
+while getopts ":a:hm:t:" Option
+do                                                                                
+    case $Option in                                                                   
+        a) 
+            ARCH="$OPTARG";;
+        h) 
+            NEED_HELP=1;;
+        t) 
+            CODE_TYPE="$OPTARG";;
+        m) 
+            MACH_CODE="$OPTARG";;
+        *)
+            echo "You just entered an unsuported option.";;
+    esac                                                                              
+done                                                                              
+
+if [ $NEED_HELP -eq 1 ]
+then
+    print_help
+fi
+
+case $CODE_TYPE in
+    "normal"|"thumb")
+        ;;
+    *)
+        print_help
+        echo "Code type only support normal,thumb"
+        exit;;
+esac
+
+if [ -f "$MACH_CODE" ] # machine code in file
+then
+    mach_to_asm $ARCH $MACH_CODE $CODE_TYPE
+else
+    TMPFILE=$(mktemp)
+    echo -ne ${MACH_CODE} > $TMPFILE
+    mach_to_asm $ARCH $TMPFILE $CODE_TYPE
+    rm $TMPFILE
+fi

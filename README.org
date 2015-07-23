@@ -1,0 +1,90 @@
+* License
+
+  GPLv3+
+  
+  See the source for details
+
+* About
+
+  This repository contains two utils:
+
+  * mtoa
+
+    translate machine code to assembly code snippet
+
+  * atom
+
+    translate assembly code snippet to machine code
+
+* How to use
+
+first of all, you should install *arm-linux-androideabi-as* and *arm-linux-androideabi-objdump*, if you use ubuntu:
+#+BEGIN_SRC sh
+  sudo apt-get install gcc-arm-linux-androideabi
+#+END_SRC
+
+then, download the two scripts,put them into your *PATH*,and don't forget adding executable permission on them using *chmod +x*
+
+try
+#+BEGIN_SRC bash
+mtoa -h
+#+END_SRC
+or
+#+BEGIN_SRC bash
+atom -h
+#+END_SRC
+to get help infomation
+
+* Examples
+
+** atom
+
++ through command line:
+
+#+BEGIN_SRC sh
+  $atom -a "cmp r0,#1"
+  =>  e3500001    cmp r0, #1
+
+  $atom -a "cmp r0,#1" -t normal
+  =>  e3500001    cmp r0, #1
+
+  $atom -a "cmp r0,#1" -t thumb
+  =>  2801        cmp r0, #1
+#+END_SRC
+
++ through file:
+
+#+BEGIN_SRC sh
+  $cat test
+  =>
+      cmp r0,#1
+      mov r2,r0
+
+  $atom -a test
+  =>
+      e3500001    cmp r0, #1
+      e1a02000    mov r2, r0
+#+END_SRC
+
+** mtoa
+
++ through command line:
+
+#+BEGIN_SRC sh
+  $mtoa -m '\x01\x28' -t thumb
+  =>  2801        cmp r0, #1
+#+END_SRC
+
++ through file:
+
+#+BEGIN_SRC sh
+  $echo -ne '\x01\x00\x50\xe3\x00\x20\xa0\xe1' > test
+  $mtoa -m test
+  =>
+      e3500001    cmp r0, #1
+      e1a02000    mov r2, r0
+#+END_SRC
+
+* Todo
+
++ remove *\x* in machine code
